@@ -1,145 +1,85 @@
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <vector>
-#include <array>
 #include <map>
 using namespace std;
 
-int main(/*WAAAAAAAAA*/ int argc, char** argv) {  
-  //NEEEEEIIIIIIN:
-  string filename = argv[1];
-  
-  /*string filename;
-  getline(cin, filename); // NIMMT KEINE FILE-EXTENSIONS!!!*/
-  ifstream file;
-  file.open(filename);
-  string word;
-  file.ignore(256, '\n');/*             */
-  /*for (int i = 0; i < 10; i++) {
-    file >> word;
-    cout << filename << i << ": "<< word << endl;
-    cout << "Oida?" << endl;
-  }
-  cout << "OIDA!?" << endl;
+/*Highest scores / weights:
+dim 10: 12.28
+dim 999: 1561.16
+Files used were no. 30
 */
 
-  /*cout << "THE ONE AND ONLY TEST: "<< endl;
-  string test = "Es geht umd die Abstaende!";
-  test >> word;
-  cout << word;*/
+map<string, vector<vector<float>>> parser();
+float needlemanWunschLight(map<string, vector<vector<float>>> collector);
 
-  vector<float> row;
+int main() {
+  cout << needlemanWunschLight(parser()) << endl;
+  return 0;
+}
+
+map<string, vector<vector<float>>> parser() {
+  vector<float> row; // Temporary storage for each parsed row
   vector<vector<float>> down;
   vector<vector<float>> right;
-  map<string, vector<vector<float>>> collector;
+  map<string, vector<vector<float>>> collector; /* Unites the two scoring matrices
+  in order to simplify later iterations */
   collector["down"] = down;
   collector["right"] = right;
   
   string key = "down";
 
-  
-
   char delimiter = ' ';
-  size_t prevDelim = 0;
-  string line;
-  bool filled = false;
 
-  cout << filename << endl;
-  while (getline(file, line)) {
+  string line;
+
+  getline(cin, line); // Discards the first line of input as header
+
+  while (getline(cin, line)) {
+    // Switches to the next scoring matrix and skips a row:
     if (line[0] != delimiter) {
       key = "right";
       continue;
     }
-    cout << line << endl;
-    row = {};
+
+    row = {}; // Empties the temporary row storage before parsing the next row
     
-    //cout << word << endl;
+    // Loop for the starting character; previous denotes the one before that:
     for (int previous = 0; previous < line.size(); previous++) {
-      //cout << "i = "<< i << ": ";
+      // Checks for the beginning character of a score:
       if (line[previous+1] != delimiter && line[previous] == delimiter) {
-        //cout << endl << i << ": '" << line[i]<< "'" << endl;
-        //cout << delimiter << endl;
-
-        cout << "so far so good" << endl;
+        /* Loop for the ending character, initiated as the character directly
+        following the starting character: */
         for (int upcoming = previous+2; upcoming < line.size(); upcoming++) {
-          //cout << "upcoming: "<< upcoming << ": ";
-          if (line[upcoming] == delimiter || line[upcoming] == '\0') {
-
-cout << "still!" << endl;
+          // Checks for the ending character of a score:
+          if (line[upcoming] == delimiter) {
+            // Appends the newly parsed score to the row:
             row.push_back(stof(line.substr(previous+1, upcoming-(previous+1))));
-            //collector[key][i+1].push_back(stof(line.substr(i+1, upcoming-(i+1))));
-            //cout << i+1 <<" - "<< upcoming << "'" << line[upcoming] << "'" << endl;
-            //cout << line.substr(i+1, upcoming-(i+1)) << endl;
-            //cout << "CURRENT: "<< line.substr(i, upcoming-i) << endl;
-            cout << "got it? ";
-            /*for (int i = 0; i < row.size(); i++) {
-              cout << row[i] <<" ";
-            }*/
-            
-            break;
+            break; // In order to avoid reusing a score
           }
         }
-        /*if (filled) {
-          filled = false;
-          break;
-        }*/
       }
     }
-    //collector[key].push_back(100000.789);
-
-    /* try {
-      collector[key].push_back(stof(word));
-      //cout << word << endl;
-    } catch (...) {}*/
-
-    /*if (word != "0.67") {
-      cout << "SUCCESS" << endl;
-    } else {cout << word << endl;}*/
-    //cout << "whatever";
-    cout << key << ": ";
-    for (int i = 0; i < row.size(); i++) {
-      cout << row[i] << endl;
-    }
     collector[key].push_back(row);
-
-    contin:;
   }
+  return collector;
+}
 
-  down = collector["down"];
-  right = collector["right"];
-
-  cout << "test" << endl;
-  //cout << "down.size = "<< down.size() <<" down[0].size = "<< down[0].size() << endl;
-
-  /*for (int i = 0; i < 9/*down.size()* /; i++) {
-    for (int j = 0; j < 9/*down[i].size()* /; j++) {
-      cout << collector["down"][i][j] << endl;
-      cout << "row: "<< i <<" column: "<< j << endl;
-    }
-    cout << "NEWLINE" << endl;
-  }*/
-  
-  cout << "u good?" << endl;
-
-
-  int matrixSize = right.size();
-
-  int dat = 0 + down.size();
-  
+float needlemanWunschLight(map<string, vector<vector<float>>> collector) {
+  // Unpacks the scoring matrices for readabilities sake:
+  vector<vector<float>> down = collector["down"];
+  vector<vector<float>> right = collector["right"];
+  int matrixSize = right.size(); /* Helps avoid frequent recalculation in order
+  to boost performance */
   
   float path[matrixSize][matrixSize];
   path[0][0] = 0;
 
-  cout << down.size() << matrixSize << sizeof(path)/sizeof(*path) << endl;
-
+  // The actual simplified Needleman-Wunsch-Algorithm itself:
   for (int row = 0; row < matrixSize; row++) {
     for (int col = 0; col < matrixSize; col++) {
-      cout << "row-col: "<< row << "-" << col << endl;
-      if (row == 0 && col == 0 /*(row & col) == 0*/) {
-        cout << "so you noticed..."<<endl;
+      if (row == 0 && col == 0) {
         continue;
-        cout << "BUT YOU DIDN'T JUMP!!!" << endl;
       } else if (row == 0) {
         path[0][col] = path[0][col-1] + right[0][col-1];
       } else if (col == 0) {
@@ -150,59 +90,9 @@ cout << "still!" << endl;
           path[row][col-1] + right[row][col-1]
         );
       }
-
-      //contin:;
     }
   }
-
-
-
-
-
-  for (int i = 0; i < matrixSize; i++) {
-    for (int j = 0; j < matrixSize; j++) {
-      cout << path[i][j] << " ";
-      if (path[i][j] < 10) {
-        cout << " ";
-      }
-    }
-    cout << endl;
-  }
-  cout << endl;
-
-  for (int i = 0; i < matrixSize-1; i++) {
-    for (int j = 0; j < matrixSize; j++) {
-      cout << down[i][j] << " ";
-      if (down[i][j] < 10) {
-        cout << " ";
-      }
-    }
-    cout << endl;
-  }
-  cout << endl;
-
-  for (int i = 0; i < matrixSize; i++) {
-    for (int j = 0; j < matrixSize-1; j++) {
-      cout << right[i][j] << " ";
-      if (right[i][j] < 10) {
-        cout << " ";
-      }
-    }
-    cout << endl;
-  }
-  cout << endl;
-
-  cout << "SOLUTION: "<< path[matrixSize-1][matrixSize-1] << endl << endl;
-
-  
-
-
-
-
-
-  return 0;
-}
-
-map<string, vector<vector<int>>> parser(string filename) {
-  
+  /* The bottom right element of the cumulative score, which corresponds to
+  the highest possible score and is therefor returned for output: */
+  return path[matrixSize -1][matrixSize -1];
 }
