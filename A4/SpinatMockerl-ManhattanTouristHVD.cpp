@@ -4,11 +4,7 @@
 #include <map>
 using namespace std;
 
-/*Highest scores / weights:
-dim 10: 12.28
-dim 999: 1561.16
-Files used were no. 30
-*/
+// Delimiter-Ändernde Option einbauen
 
 map<string, vector<vector<float>>> parser();
 float needlemanWunschLight(map<string, vector<vector<float>>> collector);
