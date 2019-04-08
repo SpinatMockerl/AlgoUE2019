@@ -1,58 +1,60 @@
 #include <iostream>
 #include <string>
+#include <string.h>
 #include <vector>
 #include <map>
 using namespace std;
 
-// Delimiter-Ändernde Option einbauen
-
-map<string, vector<vector<float>>> parser();
+map<string, string> argParser(int argc, char argv);
+map<string, vector<vector<float>>> pathParser(char delimiter = ' ');
 float needlemanWunschLight(map<string, vector<vector<float>>> collector);
 
-int main() {
-  cout << needlemanWunschLight(parser()) << endl;
+int main(int argc, char** argv) {
+  char delimiter = ' ';
+
+  if (argc > 2 && (strcmp(argv[1], "-d") || strcmp(argv[1], "--delimiter"))) {
+    if (strcmp(argv[2], "\t") == 0) {
+      delimiter = '\t';
+    } else {
+      delimiter = *argv[2];
+    }
+  } 
+
+  cout << needlemanWunschLight(pathParser(delimiter)) << endl;
+
   return 0;
 }
 
-map<string, vector<vector<float>>> parser() {
-  vector<float> row; // Temporary storage for each parsed row
+map<string, vector<vector<float>>> pathParser(char delimiter) {
   vector<vector<float>> down;
   vector<vector<float>> right;
-//////////////////
   vector<vector<float>> diagonal;
-//////////////////
   map<string, vector<vector<float>>> collector; /* Unites the two scoring matrices
   in order to simplify later iterations */
   collector["down"] = down;
   collector["right"] = right;
-//////////////////
   collector["diagonal"] = diagonal;
 
   string keychain[3] = {"down", "right", "diagonal"};
   string key = keychain[0];
   unsigned keyID = 0;
-//////////////////
-  char delimiter = ' ';
 
   string line;
 
   getline(cin, line); // Discards the first line of input as header
 
   while (getline(cin, line)) {
-    // Switches to the next scoring matrix and skips a row:
+    // Switches to the next scoring matrix and skips each header row:
     if (line[0] != delimiter) {
-///////////////////////
       if (line[0] == '-') {
-        keyID++; // DER GANZE BLOCK IS SCHIRCH!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        keyID++;
       }
-///////////////////////
       continue;
     }
-///////////////////////
-    key = keychain[keyID];
-///////////////////////
 
-    row = {}; // Empties the temporary row storage before parsing the next row
+    key = keychain[keyID];
+
+    vector<float> row = {}; // Temporary storage for each parsed row
     
     // Loop for the starting character; previous denotes the one before that:
     for (int previous = 0; previous < line.size(); previous++) {
@@ -60,9 +62,9 @@ map<string, vector<vector<float>>> parser() {
       if (line[previous+1] != delimiter && line[previous] == delimiter) {
         /* Loop for the ending character, initiated as the character directly
         following the starting character: */
-        for (int upcoming = previous+2; upcoming < line.size(); upcoming++) {
+        for (int upcoming = previous+2; upcoming <= line.size(); upcoming++) {
           // Checks for the ending character of a score:
-          if (line[upcoming] == delimiter) {
+          if (line[upcoming] == delimiter || ! line[upcoming]) {
             // Appends the newly parsed score to the row:
             row.push_back(stof(line.substr(previous+1, upcoming-(previous+1))));
             break; // In order to avoid reusing a score
@@ -76,7 +78,7 @@ map<string, vector<vector<float>>> parser() {
 }
 
 float needlemanWunschLight(map<string, vector<vector<float>>> collector) {
-  // Unpacks the scoring matrices for readabilities sake:
+  // Unpacks the scoring matrices for readability's sake:
   vector<vector<float>> down = collector["down"];
   vector<vector<float>> right = collector["right"];
 
