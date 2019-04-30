@@ -288,11 +288,13 @@ map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Ma
 
   while (row > 0) {
     rowAln.insert(rowAln.begin(), rowSeq[1][row -1]);
+    colAln.insert(colAln.begin(), '-');
     seqDecoration.insert(seqDecoration.begin(), ' ');
     row--;
   }
 
   while (col > 0) {
+    rowAln.insert(rowAln.begin(), '-');
     colAln.insert(colAln.begin(), colSeq[1][col -1]);
     seqDecoration.insert(seqDecoration.begin(), ' ');
     col--;
@@ -339,8 +341,12 @@ void printAlignment(map<string, string> alignment) {
       }
     }
 
+      int seq1restLen = alignment["seq1"].size() - seqPos;
+      int seq2restLen = alignment["seq2"].size() - seqPos;
+
     for (int seqLinePos = 0; seqLinePos < 60; seqLinePos++) {
-      if (seqLinePos > alignment["seq" + seqID].size()) {
+      if ((seqID == "1" && seqLinePos > seq1restLen)
+      || (seqID == "2" && seqLinePos > seq2restLen)) {
         break;
       }
 
@@ -364,7 +370,7 @@ void printAlignment(map<string, string> alignment) {
 
     if (seqID != "Decoration") {
       if (seqPos < 60) {
-        seqPos -= alignment["seq1"].size();
+        seqPos -= alignment["seq1"].size() +1;
       } else {
         seqPos -= 60;
       }
@@ -397,135 +403,6 @@ void printAlignment(map<string, string> alignment) {
     
     //cout << seqID << endl;
     //cout << seqPos << endl;
-  } // decoration ausgeben, endls
-
-
-/*
-  for (int pos = 0; pos < 80; pos++) {
-    for (int headerPos = 0; headerPos < 20) {
-      if (alignment["header1"].size() > headerPos) {
-        cout << alignment["header1"][headerPos];
-        pos++;
-      } else {
-        cout << " ";
-        pos++;
-      }
-    } //0-19;20-79
-    
-    while (pos < 80) {
-      c
-    }
-  }*/
-}//for (int baseNo = 0; baseNo < alignment["seq1"].size(); baseNo++) {
-
-/*map<int, Matrix> directionalscoringFun(string colSeq, string rowSeq, map<string, int> scoringFun) {
-  map<int, Matrix> directionalMatrix = {
-    {directions::down, Matrix(rowSeq.size() -1, vector<int>(colSeq.size(), scoringFun::gap))},
-    {directions::right, Matrix(rowSeq.size(), vector<int>(colSeq.size() -1, scores::gap))},
-    {directions::diagonal, Matrix(rowSeq.size() -1, vector<int>(colSeq.size() -1, 0))}
   }
-
-  //string::iterator colIt = colSeq.begin();
-  //string::iterator rowIt = rowSeq.begin();
-
-  for (int row = 0; row < rowSeq.size(); row++) {
-    for (int col = 0; row < colSeq.size(); col++) {
-      if (rowSeq[row] == colSeq[col]) {
-
-      }
-    }
-  }
-}*/
-
-/*
-map<string, vector<vector<int>>> pathParser(char delimiter) {
-  vector<vector<int>> down;
-  vector<vector<int>> right;
-  vector<vector<int>> diagonal;
-  map<string, vector<vector<int>>> collector; /* Unites the two scoring matrices
-  in order to simplify later iterations * /
-  collector["down"] = down;
-  collector["right"] = right;
-  collector["diagonal"] = diagonal;
-
-  string keychain[3] = {"down", "right", "diagonal"};
-  string key = keychain[0];
-  unsigned keyID = 0;
-
-  string line;
-
-  getline(cin, line); // Discards the first line of input as header
-
-  while (getline(cin, line)) {
-    // Switches to the next scoring matrix and skips each header row:
-    if (line[0] != delimiter) {
-      if (line[0] == '-') {
-        keyID++;
-      }
-      continue;
-    }
-
-    key = keychain[keyID];
-
-    vector<int> row = {}; // Temporary storage for each parsed row
-    
-    // Loop for the starting character; previous denotes the one before that:
-    for (int previous = 0; previous < line.size(); previous++) {
-      // Checks for the beginning character of a score:
-      if (line[previous+1] != delimiter && line[previous] == delimiter) {
-        /* Loop for the ending character, initiated as the character directly
-        following the starting character: * /
-        for (int upcoming = previous+2; upcoming <= line.size(); upcoming++) {
-          // Checks for the ending character of a score:
-          if (line[upcoming] == delimiter || ! line[upcoming]) {
-            // Appends the newly parsed score to the row:
-            row.push_back(stof(line.substr(previous+1, upcoming-(previous+1))));
-            break; // In order to avoid reusing a score
-          }
-        }
-      }
-    }
-    collector[key].push_back(row);
-  }
-  return collector;
+  cout << alignment["seq1"] << endl << alignment["seq2"] << endl;
 }
-
-int needlemanWunschLight(map<string, vector<vector<int>>> collector) {
-  // Unpacks the scoring matrices for readability's sake:
-  vector<vector<int>> down = collector["down"];
-  vector<vector<int>> right = collector["right"];
-
-  vector<vector<int>> diagonal = collector["diagonal"];
-
-  int matrixSize = right.size(); /* Helps avoid frequent recalculation in order
-  to boost performance * /
-  
-  int path[matrixSize][matrixSize];
-  path[0][0] = 0;
-
-  // The actual simplified Needleman-Wunsch-Algorithm itself:
-  for (int row = 0; row < matrixSize; row++) {
-    for (int col = 0; col < matrixSize; col++) {
-      if (row == 0 && col == 0) {
-        continue;
-      } else if (row == 0) {
-        path[0][col] = path[0][col-1] + right[0][col-1];
-      } else if (col == 0) {
-        path[row][0] = path[row-1][0] + down[row-1][0];
-      } else {      
-        path[row][col] = max(
-          path[row-1][col-1] + diagonal[row-1][col-1],
-          max(path[row-1][col] + down[row-1][col],
-          path[row][col-1] + right[row][col-1])
-        );
-      }
-    }
-  }
-  /* The bottom right element of the cumulative score, which corresponds to
-  the highest possible score and is therefor returned for output: * /
-  return path[matrixSize -1][matrixSize -1];
-}
-YPK1            SQLSWKRLLMKGYIPPYKPAVS-----NSMDTSNFDEEFTR---EKPIDSVVDEYLSESV
-KRAC_BOVIN      ASIVWQDVYEKKLSPPFKPQVT-----SETDTRYFDEEFTA---QMITITPPDQDDSMEG
-
-*/
