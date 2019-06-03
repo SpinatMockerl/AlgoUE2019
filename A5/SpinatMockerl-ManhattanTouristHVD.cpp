@@ -7,146 +7,128 @@
 #include <algorithm>
 using namespace std;
 
-/*To Do:
+/*
 
-
-Gap-Einbau und Alignment-Länge anpassen
-
-
+To Do:
+Vor isatty auf -h testen, um Help-MSG auszugeben.
+Überflüssiges Input entfernen.
 
 */
-typedef enum {
-  down = 1,
-  right = 2,
-  diagonal = 4
-} directions;
 
 typedef vector<vector<int>> Matrix;
 typedef vector<vector<string>> Fasta;
 
-map<string, int> argParser(int argc, char** argv);
-Fasta fastaReader();
+map<string, int> parseArgs(int argc, char** argv);
+Fasta readFasta();
 Matrix scoreNW(string colSeq, string rowSeq, map<string, int> scoringFun);
-map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Matrix scores, map<string, int> scoringFun);
+map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq,
+  Matrix scores, map<string, int> scoringFun);
 void printAlignment(map<string, string> alignment);
-
-
-map<string, vector<vector<int>>> pathParser(char delimiter = ' ');
-int needlemanWunschLight(map<string, vector<vector<int>>> collector);
-
-string help = "HELP-MSG\n";
+bool testForInt(string number);
 
 int main(int argc, char** argv) {
-  if (isatty(STDIN_FILENO) == 1) {
-    cerr << "USAGE!!!!!!!!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  map<string, int> scoringFun = parseArgs(argc, argv);
+
+  vector<vector<string>> seqs = readFasta();
   
-  char delimiter = ' ';
+  Matrix scoringMatrix = scoreNW(seqs[0][1], seqs[1][1], scoringFun);
 
-  //cout << isatty(STDIN_FILENO) << endl;
-
-  /*if (argc > 2 && (strcmp(argv[1], "-d") || strcmp(argv[1], "--delimiter"))) {
-    if (strcmp(argv[2], "\t") == 0) {
-      delimiter = '\t';
-    } else {
-      delimiter = *argv[2];
-    }
-  } */
-
-  /*for (int i = 0; i < argc; i++) {
-    cout << argv[i] << endl;
-  }*/
-
-  //cout << "works so far" << endl;
-
-  map<string, int> scoringFun = argParser(argc, argv);
-
-  vector<vector<string>> seqs = fastaReader();
+  map <string, string> alignment = backtrackNW(seqs[0], seqs[1],
+    scoringMatrix, scoringFun);
   
-  //cout << "SEQUENCE 0:" << endl;
-  //cout << seqs[0][1] << endl;
-  
+  printAlignment(alignment);
 
-  int seqCount = seqs.size();
-
-  for (int row = 0; row < seqCount -1; row++) {
-    for (int col = row +1; col < seqCount; col++) {
-      // anpassen an neues Format von seqs:
-      Matrix scoringMatrix = scoreNW(seqs[col][1], seqs[row][1], scoringFun);
-
-      /*for (int i = 0; i < scoringMatrix.size(); i++) {
-        for (int j = 0; j < scoringMatrix[0].size(); j++) {
-          cout << scoringMatrix[i][j] <<" ";
-        }
-        cout << endl << endl;
-      }*/
-/*
-      cout << "row - col:" << endl << row << "-" << col << endl;
-      cout << "SEQUENCE "<< col << ": "<< endl;
-      cout << seqs[col][0] << endl << seqs[col][1] << endl;
-      cout << "SEQUENCE "<< row << ": "<< endl;
-      cout << seqs[row][0] << endl << seqs[row][1] << endl << endl;
-  */    
-      /*cout << "SCORING MATRIX:" << endl;
-      for (int row = 0; row < scoringMatrix.size(); row++) {
-        for (int col = 0; col < scoringMatrix[0].size(); col++) {
-          cout << scoringMatrix[row][col] << " ";
-        }
-        cout << endl;
-      }*/
-
-      // ~ vector.push_back(Backtracking)
-      map <string, string> alignment = backtrackNW(seqs[col], seqs[row], scoringMatrix, scoringFun);
-      printAlignment(alignment);
-    }
-  }
-
-
-  //cout << needlemanWunschLight(pathParser(delimiter)) << endl;
+  cerr << scoringMatrix[scoringMatrix.size() -1][scoringMatrix[0].size() -1]
+    << endl;
 
   return 0;
 }
 
-map<string, int> argParser(int argc, char** argv) {
-  map<string, int> scoringFun = {{"match", 1}, {"mismatch", -1}, {"gap", -2}};
+map<string, int> parseArgs(int argc, char** argv) {
+  int bufferSize = 100;
+  
+  char usage[bufferSize];
 
-  //cout << "inside function" << endl;
+  snprintf(usage, bufferSize, "Usage: %s [options] < input_file.fasta",
+    argv[0]);
+
+  char more[bufferSize];
+  snprintf(more, bufferSize, "Type %s -h | --help for further information",
+    argv[0]);
+  string help = "Align 2 sequences from one .fasta file using the ";
+  help += "Needleman-Wunsch-Algorithm, and output it in CLUSTAL-format. The ";
+  help += "Scoring function may be changed using the --match, --mismatch or ";
+  help += "--gap options, followed by an integer. Only the first 2 sequences ";
+  help += "of the file are used, regardless how many are contained therein.";
+
+  map<string, int> scoringFun = {{"match", 1}, {"mismatch", -1}, {"gap", -2}};
 
   for (int i = 1; i < argc; i++) {
     string arg = (string)argv[i];
+    bool NaN = false;
 
     if (arg == "--help" || arg == "-h") {
-      cout << help;
+      cout << usage << endl;
+      cout << help << endl;
       exit(EXIT_SUCCESS);
 
-    } else try {
-      if (arg == "--match") {
+    } else if (arg == "--match") {
+      if (testForInt(argv[i +1])) {
         scoringFun["match"] = stoi(argv[i +1]);
-      } else if (arg == "--mismatch") {
-        scoringFun["mismatch"] = stoi(argv[i +1]);
-      } else if (arg == "--gap") {
-        scoringFun["gap"] = stoi(argv[i +1]);
+      } else {
+        NaN = true;
       }
-    } catch (...) {
+
+    } else if (arg == "--mismatch") {
+      if (testForInt(argv[i +1])) {
+        scoringFun["mismatch"] = stoi(argv[i +1]);
+      } else {
+        NaN = true;
+      }
+    } else if (arg == "--gap") {
+      if (testForInt(argv[i +1])) {
+        scoringFun["gap"] = stoi(argv[i +1]);
+      } else {
+        NaN = true;
+      }
+    }
+    
+    if (NaN) {
         cerr << "ERROR: A whole number needs to be provided after " <<
-          "--match, --mismatch and --gap.\nAborting\n";
+          "--match, --mismatch and --gap." << endl << "Aborting" << endl;
         exit(EXIT_FAILURE);
     }
+  }
+
+  /* Tests, whether input is coming from a terminal; if so, program is 
+  terminated. */
+  if (isatty(STDIN_FILENO) == 1) {
+    cerr << usage << endl;
+    cerr << more << endl;
+    exit(EXIT_FAILURE);
   }
 
   return scoringFun;
 }
 
-Fasta fastaReader() {
+Fasta readFasta() {
   string line;
   string seq;
   Fasta seqs;
   string header;
   bool firstLine = true;
 
+  int seqCount = 0;
+
   while (getline(cin, line)) {
     if (line[0] == '>') {
+      seqCount++;
+
+      if (seqCount > 2) {
+        cerr << endl << "WARNING: Input file contains more than 2 sequences. "
+          << "Only the first 2 are used in the alignment." << endl << endl;
+        break;
+      }
       vector<string> compoundSeq = {header, seq};
       
       if (! firstLine) {
@@ -154,7 +136,7 @@ Fasta fastaReader() {
       }
       
       // Set to next Sequence:
-      header = line;
+      header = line.substr(1, line.size() -1);
       seq = "";
     } else if (line[0] == ';') {
       continue;
@@ -162,15 +144,11 @@ Fasta fastaReader() {
       seq += line;
     }
 
-    //cout << "line read" << endl;
-
     firstLine = false;
   }
   
   vector<string> compoundSeq = {header, seq};
   seqs.push_back(compoundSeq);
-
-  //cout << "all sequences read" << endl;
 
   return seqs;
 }
@@ -181,20 +159,15 @@ Matrix scoreNW(string colSeq, string rowSeq, map<string, int> scoringFun) {
   for (int row = 0; row < rowSeq.size() +1; row++) {
     for (int col = 0; col < colSeq.size() +1; col++) {
 
-      //cout << "while scoring: row - col = " << row << "-" << col << endl;
-
       if (row == 0 && col == 0) {
-        //cout << "ROW AND COL == 0" << endl;
-
         continue;
+
       } else if (row == 0) {
         scores[row][col] = scores[row][col -1] + scoringFun["gap"];
 
-        /*cout << "GAP-Cost = " << scoringFun["gap"] << endl;
-        cout << "Score to the left = "<< scores[row][col -1] << endl;
-        cout << "calculated score = "<< scores[row][col] << endl;*/
       } else if (col == 0) {
         scores[row][col] = scores[row -1] [col] + scoringFun["gap"];
+
       } else {
         int down = scores[row -1][col] + scoringFun["gap"];
         int right = scores[row][col -1] + scoringFun["gap"];
@@ -202,6 +175,7 @@ Matrix scoreNW(string colSeq, string rowSeq, map<string, int> scoringFun) {
         int diagonal = scores[row -1][col -1]; // diagonally preceeding score
         if (rowSeq[row -1] == colSeq[col -1]) { // current base
           diagonal += scoringFun["match"];
+
         } else {
           diagonal += scoringFun["mismatch"];
         }
@@ -210,8 +184,6 @@ Matrix scoreNW(string colSeq, string rowSeq, map<string, int> scoringFun) {
       }
     }
   }
-
-  //cout << "NW-score calculated" << endl;
 
   return scores;
 }
@@ -224,30 +196,12 @@ map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Ma
   int row = scores.size() -1;
   int col = scores[0].size() -1;
 
-        /*cout << "ROW:" << endl << rowSeq[1][17] << endl;
-        cout << "COL:" << endl << colSeq[1][16] << endl;*/
-
   while (row > 0) {
-
-    //cout << "while (row > 0) {" << endl;
-
     if (col < 1) {
       break;
     }
 
     while (col > 0) {
-
-      /*cout << "while (col > 0) {" << endl;
-      cout << row << "-" << col << endl;
-
-      cout << "CURRENT SCORE = "<< scores[row][col] << endl;
-      cout << "DIAGONALLY PREVIOUS SCORE = "<< scores[row][col] << endl;
-
-      if (row == 16 && col == 15) {
-        cout << "ROW:" << endl << rowSeq[1][15] << endl;
-        cout << "COL:" << endl << colSeq[1][14] << endl;
-      }*/
-
       if (row < 1) {
         break;
       }
@@ -260,19 +214,23 @@ map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Ma
 
         row--;
         col--;
-      } else if (scores[row][col] == scores[row -1][col -1] + scoringFun["mismatch"]) {
+
+      } else if (scores[row][col] == scores[row -1][col -1] +
+                 scoringFun["mismatch"]) {
         rowAln.insert(rowAln.begin(), rowSeq[1][row -1]);
         colAln.insert(colAln.begin(), colSeq[1][col -1]);
         seqDecoration.insert(seqDecoration.begin(), ' ');
 
         row--;
         col--;
+
       } else if (scores[row][col] == scores[row][col -1] + scoringFun["gap"]) {
         rowAln.insert(rowAln.begin(), '-');
         colAln.insert(colAln.begin(), colSeq[1][col -1]);
         seqDecoration.insert(seqDecoration.begin(), ' ');
 
         col--;
+
       } else if (scores[row][col] == scores[row -1][col] + scoringFun["gap"]) {
         rowAln.insert(rowAln.begin(), rowSeq[1][row -1]);
         colAln.insert(colAln.begin(), '-');
@@ -282,14 +240,12 @@ map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Ma
       }
     }
   }
-  // fill in remaining gaps, if row or col == 0
-  
-  //cout << "filling in remaining gaps..." << endl;
 
   while (row > 0) {
     rowAln.insert(rowAln.begin(), rowSeq[1][row -1]);
     colAln.insert(colAln.begin(), '-');
     seqDecoration.insert(seqDecoration.begin(), ' ');
+    
     row--;
   }
 
@@ -297,45 +253,33 @@ map<string, string> backtrackNW(vector<string> colSeq, vector<string> rowSeq, Ma
     rowAln.insert(rowAln.begin(), '-');
     colAln.insert(colAln.begin(), colSeq[1][col -1]);
     seqDecoration.insert(seqDecoration.begin(), ' ');
+    
     col--;
   }
 
-  //map<string, string> alignment = {{"seq1", colAln}, {"header1", colSeq[0]}, {"seq2", rowAln}, {"header2", rowSeq[0]}, {"seqDecoration", seqDecoration}};
-
-  /*colAln(colAln.begin(), colAln.end());
-  rowAln(rowAln.begin(), rowAln.end());*/
-
-  //cout << "building alignment..." << endl;
-
   map<string, string> alignment;
-  //alignment["seq1"] = colAln;
   alignment["header1"] = colSeq[0];
-  //alignment["seq2"] = rowAln;
   alignment["header2"] = rowSeq[0];
-  //alignment["seqDecoration"] = seqDecoration;
 
   for (int i = 0; i < rowAln.size(); i++) {
     alignment["seq1"] += colAln[i];
     alignment["seq2"] += rowAln[i];
     alignment["seqDecoration"] += seqDecoration[i];
   }
-
-  //cout << "ALIGNMENT 1: "<< alignment["seq2"] << endl;
-  
-  
+    
   return alignment;
 }
 
 void printAlignment(map<string, string> alignment) {
-  //cout << "printing alignment..." << endl;
-  
   int seqPos = 0;
   string seqID = "1";
+  int maxChars = 0;
 
   while (seqPos < alignment["seq1"].size()) {
     for (int headerPos = 0; headerPos < 20; headerPos++) {
-      if (alignment["header" + seqID].size() > headerPos) {
+      if (headerPos != 19 && alignment["header" + seqID].size() > headerPos) {
         cout << alignment["header" + seqID][headerPos];
+
       } else {
         cout << " ";
       }
@@ -343,66 +287,65 @@ void printAlignment(map<string, string> alignment) {
 
       int seq1restLen = alignment["seq1"].size() - seqPos;
       int seq2restLen = alignment["seq2"].size() - seqPos;
+      int decorationRestLen = alignment["seqDecoration"].size() - seqPos;
+
+      int lineChars = 0;
 
     for (int seqLinePos = 0; seqLinePos < 60; seqLinePos++) {
       if ((seqID == "1" && seqLinePos > seq1restLen)
-      || (seqID == "2" && seqLinePos > seq2restLen)) {
+      || (seqID == "2" && seqLinePos > seq2restLen)
+      || (seqID == "Decoration" && seqLinePos > decorationRestLen)) {
         break;
       }
 
-      //cout << alignment["seq" + seqID][seqLinePos];
+      lineChars++;
 
-      /*if (seqID == "2") {
-        cout << endl;
-        */if (seqID == "seqDecoration") {
+      if (seqID == "seqDecoration") {
         for (int pos = 0; pos < 20; pos++) {
           cout << " ";
-        //}
-        }}
-        cout << alignment["seq" + seqID][seqPos];
-      //}
+        }
+      }
+    
+      cout << alignment["seq" + seqID][seqPos];
+      
       seqPos++;
     }
+
     
-    //cout << seqID << endl;
-
-    //cout << "got it ?" << endl;
-
+    maxChars = max(maxChars, lineChars);
+    
     if (seqID != "Decoration") {
-      if (seqPos < 60) {
-        seqPos -= alignment["seq1"].size() +1;
+      if (lineChars < 60) {
+        seqPos -= lineChars;
       } else {
         seqPos -= 60;
       }
 
-      if (seqID == "1") { //cout << endl << "switched to 2" << endl;
+      if (seqID == "1") {
         seqID = "2"; 
-        //cout << "seqID = "<< seqID << endl;
-      } else if (seqID == "2") { //cout << endl << "switched to Decoration" << endl;
+
+      } else if (seqID == "2") {
         seqID = "Decoration";
       }
 
-    } else /*if (seqID == "2")*/ { //cout << endl << "switched to 1" << endl;
-      /*seqID = "Decoration";
     } else {
-      */seqID = "1";
-      
-      /*cout << endl;
-
-      for (int pos = 0; pos < 20; pos++) {
-        cout << " ";
-      }
-
-      cout << alignment["seqDecoration"] << endl;*/
+      seqID = "1";
     }
+    
     cout << endl;
-
-
-    //cout << "seqID: " << seqID << endl;
-    
-    
-    //cout << seqID << endl;
-    //cout << seqPos << endl;
   }
-  cout << alignment["seq1"] << endl << alignment["seq2"] << endl;
+
+  return;
+}
+
+bool testForInt(string number) {
+  string allowed = "0123456789-";
+  for (int i = 0; i < number.size(); i++) {
+    if (allowed.find(number[i]) >= allowed.size()) {
+      cout << "NOT A NUMBER!" << endl;
+      return false;
+    }
+  }
+
+  return true;
 }
